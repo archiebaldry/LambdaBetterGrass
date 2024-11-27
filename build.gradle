@@ -1,10 +1,6 @@
-import com.modrinth.minotaur.dependencies.ModDependency;
-
 plugins {
 	id 'fabric-loom' version '1.8-SNAPSHOT'
 	id 'com.github.johnrengelman.shadow' version '8.1.1'
-	id 'com.modrinth.minotaur' version '2.+'
-	id 'com.matthewprenger.cursegradle' version '1.4.+'
 	id "dev.yumi.gradle.licenser" version "1.1.+"
 	id 'maven-publish'
 }
@@ -19,81 +15,6 @@ base {
 license {
 	rule file('HEADER')
 	include '**/*.java'
-}
-
-boolean isMCVersionNonRelease() {
-	return project.minecraft_version.matches('^\\d\\dw\\d\\d[a-z]$')
-			|| project.minecraft_version.matches('\\d+\\.\\d+-(pre|rc)(\\d+)')
-}
-
-String getMCVersionString() {
-	if (isMCVersionNonRelease()) {
-		return project.minecraft_version
-	}
-	def version = project.minecraft_version.split('\\.')
-	return version[0] + '.' + version[1]
-}
-
-String getVersionType() {
-	if (isMCVersionNonRelease() || version.contains("-alpha.")) {
-		return "alpha"
-	} else if (version.contains("-beta.")) {
-		return "beta"
-	} else {
-		return "release"
-	}
-}
-
-String parseReadme() {
-	def linkRegex = /!\[([A-z._ ]+)]\((images\/[A-z.\/_]+)\)/
-
-	def readme = (String) file('README.md').text
-	def lines = new ArrayList<>(Arrays.asList(readme.split("\n")))
-	def it = lines.iterator()
-
-	boolean shouldRemove = false;
-	while (it.hasNext()) {
-		def line = it.next();
-
-		if (line.equals("<!-- modrinth_exclude.long_start -->")) {
-			shouldRemove = true
-		}
-
-		if (shouldRemove) {
-			it.remove()
-		}
-
-		if (line.equals("<!-- modrinth_exclude.long_end -->")) {
-			shouldRemove = false
-		}
-	}
-
-	readme = lines.join("\n")
-	readme = readme.replaceAll(linkRegex, '![$1](https://raw.githubusercontent.com/LambdAurora/LambdaBetterGrass/1.20/$2)')
-	return readme
-}
-
-String fetchChangelog() {
-	def changelogText = file('CHANGELOG.md').text
-	def regexVersion = ((String) project.mod_version).replaceAll('\\.', /\\./).replaceAll('\\+', '\\+')
-	def changelogRegex = ~"###? ${regexVersion}\\n\\n(( *- .+\\n)+)"
-	def matcher = changelogText =~ changelogRegex
-
-	if (matcher.find()) {
-		def changelogContent = matcher.group(1)
-
-		def changelogLines = changelogText.split('\n')
-		def linkRefRegex = ~'^\\[([A-z\\d _\\-/+.]+)]: '
-		for (int i = changelogLines.length - 1; i > 0; i--) {
-			def line = changelogLines[i]
-			if ((line =~ linkRefRegex).find())
-				changelogContent += '\n' + line
-			else break
-		}
-		return changelogContent
-	} else {
-		return null;
-	}
 }
 
 repositories {
@@ -176,83 +97,6 @@ shadowJar {
 }
 
 remapJar.dependsOn(shadowJar)
-
-modrinth {
-	projectId = project.modrinth_id
-	versionName = "LambdaBetterGrass ${project.mod_version} (${getMCVersionString()})"
-	gameVersions = [project.minecraft_version]
-	versionType = isMCVersionNonRelease() ? "beta" : "release"
-	loaders = ["fabric"]
-	uploadFile = tasks.remapJar
-	dependencies = [
-			new ModDependency("qvIfYCYJ", "required")
-	]
-	syncBodyFrom = parseReadme()
-
-	// Changelog fetching
-	def changelogContent = fetchChangelog()
-
-	if (changelogContent) {
-		changelog = changelogContent
-	} else {
-		afterEvaluate {
-			tasks.modrinth.setEnabled(false)
-		}
-	}
-
-	// If we don't have a MODRINTH_TOKEN, don't run the modrinth publish tasks.
-	if (!System.getenv("MODRINTH_TOKEN")) {
-		project.logger.debug('MODRINTH_TOKEN is not set! Disabled modrinth and modrinthSyncBody tasks.')
-		tasks.modrinth.setEnabled(false)
-		tasks.modrinthSyncBody.setEnabled(false)
-	}
-}
-
-curseforge {
-	if (System.getenv("CURSEFORGE_TOKEN")) {
-		apiKey = System.getenv("CURSEFORGE_TOKEN")
-	} else { // If we don't have a CURSEFORGE_TOKEN, don't run the curseforge publish tasks.
-		project.logger.debug('CURSEFORGE_TOKEN is not set! Disabled curseforge task.')
-		tasks.curseforge.setEnabled(false)
-	}
-
-	project {
-		id = project.curseforge_id
-		releaseType = this.getVersionType()
-		addGameVersion project.minecraft_version
-		addGameVersion "Fabric"
-		addGameVersion "Java 21"
-
-		// Changelog fetching
-		def changelogContent = fetchChangelog()
-
-		if (changelogContent) {
-			changelogType = "markdown"
-			changelog = "Changelog:\n\n${changelogContent}"
-		} else {
-			afterEvaluate {
-				uploadTask.setEnabled(false)
-			}
-		}
-
-		mainArtifact(remapJar) {
-			displayName = "LambdaBetterGrass ${project.mod_version} (${project.minecraft_version})"
-
-			relations {
-				requiredDependency "qsl"
-				optionalDependency "modmenu"
-				incompatible "optifabric"
-				incompatible "fabric-api"
-			}
-		}
-
-		afterEvaluate {
-			uploadTask.setGroup("publishing")
-			uploadTask.dependsOn("remapJar")
-		}
-	}
-}
-tasks.curseforge.setGroup("publishing")
 
 // Configure the maven publication.
 publishing {
