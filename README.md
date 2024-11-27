@@ -1,7 +1,5 @@
 # LambdaBetterGrass Refabricated
 
-![Modrinth Downloads](https://img.shields.io/modrinth/dt/GMdCJh2U)
-
 An unofficial Fabric port of the [actual better grass and snow mod](https://modrinth.com/mod/lambdabettergrass) by [LambdAurora](https://modrinth.com/user/LambdAurora) for 1.21.1, based on the work done by [IMS212](https://github.com/IMS212) for [Fabric 1.21](https://github.com/IMS212/LambdaBetterGrass).
 
 From the original author:
